@@ -331,6 +331,7 @@ input[type="date"]{color-scheme:dark;}
   <div class="slabel" id="slabel">Loading…</div>
   <button class="sbtn" onclick="forcePush()">Push</button>
   <button class="sbtn" onclick="forcePull()">Pull</button>
+  <button class="sbtn" onclick="resetToken()">Token</button>
 </div>
 
 <div class="app-header">
@@ -433,13 +434,27 @@ input[type="date"]{color-scheme:dark;}
   </div>
 </div>
 
+<!-- GitHub Token Setup -->
+<div class="overlay on" id="mo-token">
+  <div class="modal">
+    <div class="mttl">🔑 GitHub Token</div>
+    <p style="font-size:12px;color:var(--t3);margin-bottom:14px;line-height:1.6">Enter your GitHub Personal Access Token to enable sync. It's stored only in your browser — never sent anywhere except GitHub.</p>
+    <div class="mlbl">Personal Access Token</div>
+    <input class="minput" id="token-inp" placeholder="ghp_..." type="password" autocomplete="off" onkeydown="if(event.key==='Enter')saveToken()">
+    <p style="font-size:11px;color:var(--t4);margin-bottom:12px">Generate one at: github.com → Settings → Developer settings → Personal access tokens → Classic → tick <strong style="color:var(--t3)">repo</strong></p>
+    <div class="mbtns">
+      <button class="mok" onclick="saveToken()">Save & Connect</button>
+    </div>
+  </div>
+</div>
+
 <div class="sdrop" id="sdrop"></div>
 <div class="toast" id="toast"></div>
 
 <script>
 // CONFIG
 const GH={
-  token:'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',
+  get token(){return localStorage.getItem('tf_token')||'';},
   owner:'LogicNoJutsu',repo:'Task-Flow',
   file:'taskflow-data.json',branch:'main'
 };
@@ -515,15 +530,36 @@ function lsSave(){try{localStorage.setItem('tf',JSON.stringify(D));}catch(_){}}
 function lsLoad(){try{const s=localStorage.getItem('tf');if(s){D=JSON.parse(s);if(!D.projects)D.projects=[];if(!D.meetings)D.meetings=[];}}catch(_){}}
 function save(){lsSave();schedule();}
 
+// TOKEN
+function saveToken(){
+  const val=document.getElementById('token-inp').value.trim();
+  if(!val){document.getElementById('token-inp').focus();return;}
+  localStorage.setItem('tf_token',val);
+  document.getElementById('mo-token').classList.remove('on');
+  toast('Token saved');
+  boot();
+}
+function resetToken(){
+  localStorage.removeItem('tf_token');
+  document.getElementById('token-inp').value='';
+  document.getElementById('mo-token').classList.add('on');
+}
+
 // BOOT
 async function boot(){
-  lsLoad();
-  showView('today');
+  if(!GH.token){
+    document.getElementById('mo-token').classList.add('on');
+    setSS('err','Token required');
+    lsLoad();showView('today');
+    return;
+  }
+  document.getElementById('mo-token').classList.remove('on');
+  lsLoad();showView('today');
   const ok=await ghGet();
   if(ok&&D.projects.length===0){
     D.projects.push({id:uid(),name:'Personal',color:'c-acc',tasks:[
       {id:uid(),text:'Welcome! Your tasks sync to GitHub automatically.',status:'ns',date:tday(),meetingId:null},
-      {id:uid(),text:'Tap the status badge to change status. Use ✏️ to edit.',status:'ns',date:tday(),meetingId:null}
+      {id:uid(),text:'Tap the status badge to change status. Use edit to change text.',status:'ns',date:tday(),meetingId:null}
     ]});
     save();
   }
