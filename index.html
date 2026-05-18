@@ -182,20 +182,20 @@ body{
 }
 .projbadge{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--t4);}
 
+/* ── TASK ACTION BUTTONS — always visible ── */
 .tacts{
-  display:flex;align-items:center;gap:1px;
-  opacity:0;transition:opacity 0.12s;flex-shrink:0;
+  display:flex;align-items:center;gap:2px;flex-shrink:0;
 }
-.ti:hover .tacts{opacity:1;}
 .abtn{
-  width:26px;height:26px;border-radius:var(--rsm);border:none;
+  width:28px;height:28px;border-radius:var(--rsm);border:none;
   background:none;cursor:pointer;display:flex;align-items:center;
   justify-content:center;color:var(--t3);font-size:13px;transition:all 0.12s;
 }
 .abtn:hover{background:var(--s3);color:var(--t2);}
-.abtn.del:hover{background:rgba(248,113,113,0.08);color:var(--red);}
+.abtn.del{color:var(--t4);}
+.abtn.del:hover{background:rgba(248,113,113,0.12);color:var(--red);}
 
-/* ADD ROW */
+/* ADD ROW — button always visible */
 .add-row{
   display:flex;align-items:center;gap:8px;padding:8px 12px;
   border:1px dashed var(--b1);border-radius:var(--r);
@@ -204,12 +204,13 @@ body{
 .add-row:focus-within{border-color:var(--acc);border-style:solid;background:var(--s2);}
 .add-inp{flex:1;border:none;background:none;color:var(--t1);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;}
 .add-inp::placeholder{color:var(--t4);}
+/* FIX: button always visible, not hidden */
 .add-sub{
-  padding:4px 10px;border-radius:var(--rsm);border:none;
+  padding:5px 12px;border-radius:var(--rsm);border:none;
   background:var(--acc);color:#fff;font-family:'DM Sans',sans-serif;
-  font-size:11px;font-weight:500;cursor:pointer;display:none;
+  font-size:11px;font-weight:500;cursor:pointer;flex-shrink:0;
+  transition:background 0.12s;
 }
-.add-inp:focus~.add-sub{display:block;}
 .add-sub:hover{background:var(--acc2);}
 
 /* MEETING CARD */
@@ -322,6 +323,11 @@ body{
   background:var(--s2);color:var(--t2);font-family:'DM Sans',sans-serif;font-size:12px;outline:none;cursor:pointer;flex-shrink:0;
 }
 input[type="date"]{color-scheme:dark;}
+
+/* CONFIRM DELETE MODAL */
+.del-modal-body{font-size:13px;color:var(--t3);margin-bottom:16px;line-height:1.5;}
+.mok.danger{background:var(--red);}
+.mok.danger:hover{background:#e05555;}
 </style>
 </head>
 <body>
@@ -434,6 +440,18 @@ input[type="date"]{color-scheme:dark;}
   </div>
 </div>
 
+<!-- Confirm Delete -->
+<div class="overlay" id="mo-del">
+  <div class="modal">
+    <div class="mttl">Delete task?</div>
+    <div class="del-modal-body" id="del-body">This cannot be undone.</div>
+    <div class="mbtns">
+      <button class="mcan" onclick="closeAll()">Cancel</button>
+      <button class="mok danger" onclick="confirmDel()">Delete</button>
+    </div>
+  </div>
+</div>
+
 <!-- GitHub Setup Modal -->
 <div class="overlay on" id="mo-token">
   <div class="modal">
@@ -458,7 +476,7 @@ input[type="date"]{color-scheme:dark;}
 <div class="toast" id="toast"></div>
 
 <script>
-// CONFIG — all values stored in localStorage, never hardcoded
+// CONFIG
 const GH={
   get token(){return localStorage.getItem('tf_token')||'';},
   get gistId(){return localStorage.getItem('tf_gist')||'';}
@@ -467,7 +485,7 @@ const GH={
 // STATE
 let D={projects:[],meetings:[]};
 let view='today',projId=null,selCol='c-acc';
-let calY,calM,calTask=null,mmTid=null,renId=null,ghSha=null;
+let calY,calM,calTask=null,mmTid=null,renId=null,delTid=null,delPid=null;
 let syncTimer=null;
 
 const COLHEX={'c-acc':'#6e56ff','c-blue':'#60a5fa','c-green':'#34d399','c-amber':'#fbbf24','c-red':'#f87171','c-pink':'#f472b6','c-teal':'#2dd4bf'};
@@ -543,17 +561,16 @@ function saveToken(){
   boot();
 }
 function resetToken(){
-  localStorage.removeItem('tf_token');
-  localStorage.removeItem('tf_gist');
-  document.getElementById('token-inp').value='';
-  document.getElementById('gist-inp').value='';
+  const ti=document.getElementById('token-inp');
+  const gi=document.getElementById('gist-inp');
+  if(ti)ti.value=GH.token||'';
+  if(gi)gi.value=GH.gistId||'';
   document.getElementById('mo-token').classList.add('on');
 }
 
 // BOOT
 async function boot(){
   if(!GH.token||!GH.gistId){
-    // pre-fill any existing values
     const ti=document.getElementById('token-inp');
     const gi=document.getElementById('gist-inp');
     if(ti&&GH.token)ti.value=GH.token;
@@ -569,7 +586,7 @@ async function boot(){
   if(ok&&D.projects.length===0){
     D.projects.push({id:uid(),name:'Personal',color:'c-acc',tasks:[
       {id:uid(),text:'Welcome! Your tasks sync to GitHub automatically.',status:'ns',date:tday(),meetingId:null},
-      {id:uid(),text:'Tap the status badge to change status. Use edit to change text.',status:'ns',date:tday(),meetingId:null}
+      {id:uid(),text:'Tap the status badge to change status. Use ✏️ to edit, 🗑 to delete.',status:'ns',date:tday(),meetingId:null}
     ]});
     save();
   }
@@ -654,8 +671,8 @@ function buildProjects(){
   if(fin.length){html+=`<div class="sh"><div class="sh-lbl">Done / Skipped</div><div class="sh-line"></div></div>`;fin.forEach(t=>{html+=buildTask(t,p.id);});}
   if(!p.tasks.length)html+=`<div class="empty"><div class="ei">📋</div><p>No tasks yet.</p></div>`;
   html+=`<div class="add-row" style="margin-top:8px">
-    <input class="add-inp" placeholder="Add a task…" onkeydown="if(event.key==='Enter')addTask('${p.id}',this)">
-    <button class="add-sub" onclick="addTask('${p.id}',this.previousElementSibling)">Add</button>
+    <input class="add-inp" id="proj-add-inp-${p.id}" placeholder="Add a task…" onkeydown="if(event.key==='Enter')addTaskById('${p.id}')">
+    <button class="add-sub" onclick="addTaskById('${p.id}')">Add</button>
   </div>`;
   return html;
 }
@@ -699,7 +716,7 @@ function buildTask(task,pid,pm){
       <button class="abtn" title="Move to date" onclick="openCal('${task.id}')">📅</button>
       <button class="abtn" title="Move to meeting" onclick="openMM('${task.id}')">🤝</button>
       <button class="abtn" title="Edit" onclick="openRen('${task.id}')">✏️</button>
-      <button class="abtn del" title="Delete" onclick="delT('${task.id}','${pid||''}')">🗑</button>
+      <button class="abtn del" title="Delete" onclick="openDelConfirm('${task.id}','${pid||''}')">🗑</button>
     </div>
   </div>`;
 }
@@ -707,7 +724,10 @@ function buildTask(task,pid,pm){
 // TASK OPS
 function findT(tid){for(const p of D.projects){const t=p.tasks.find(x=>x.id===tid);if(t)return{t,p};}return null;}
 
-function addTask(pid,inp){
+// FIX: use ID-based input lookup instead of sibling reference
+function addTaskById(pid){
+  const inp=document.getElementById('proj-add-inp-'+pid);
+  if(!inp)return;
   const txt=inp.value.trim();if(!txt)return;
   const p=D.projects.find(x=>x.id===pid);if(!p)return;
   p.tasks.unshift({id:uid(),text:txt,status:'ns',date:tday(),meetingId:null});
@@ -723,10 +743,20 @@ function cycleS(tid){
 
 function setS(tid,s){const f=findT(tid);if(f){f.t.status=s;save();}closeAll();refreshView();}
 
-function delT(tid,pid){
-  const p=D.projects.find(x=>x.id===pid);if(!p)return;
-  p.tasks=p.tasks.filter(x=>x.id!==tid);
-  save();refreshView();toast('Deleted');
+// DELETE with confirmation modal
+function openDelConfirm(tid,pid){
+  delTid=tid;delPid=pid;
+  const f=findT(tid);
+  const preview=f?'"'+f.t.text.substring(0,60)+(f.t.text.length>60?'…':'')+'"':'this task';
+  document.getElementById('del-body').textContent='Delete '+preview+'? This cannot be undone.';
+  document.getElementById('mo-del').classList.add('on');
+}
+function confirmDel(){
+  if(!delTid)return;
+  const p=D.projects.find(x=>x.id===delPid);
+  if(p)p.tasks=p.tasks.filter(x=>x.id!==delTid);
+  save();closeAll();refreshView();toast('Deleted');
+  delTid=null;delPid=null;
 }
 
 // STATUS DROPDOWN
