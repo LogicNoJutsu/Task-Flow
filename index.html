@@ -492,6 +492,10 @@ input[type="date"]{color-scheme:dark;}
     <div class="mttl">Edit task</div>
     <div class="mlbl">Task</div>
     <input class="minput" id="ren-inp" maxlength="200">
+    <div class="mlbl">Project</div>
+    <select class="msel" id="ren-proj"></select>
+    <div class="mlbl">Meeting</div>
+    <select class="msel" id="ren-meet"></select>
     <div class="mbtns">
       <button class="mcan" onclick="closeAll()">Cancel</button>
       <button class="mok" onclick="doRename()">Save</button>
@@ -1004,14 +1008,40 @@ function doMoveMeet(){
 function openRen(tid){
   renId=tid;const f=findT(tid);if(!f)return;
   document.getElementById('ren-inp').value=f.t.text;
+
+  // Populate project dropdown
+  const projSel=document.getElementById('ren-proj');
+  projSel.innerHTML=D.projects.map(p=>`<option value="${p.id}"${p.id===f.p.id?' selected':''}>${esc(p.name)}</option>`).join('');
+
+  // Populate meeting dropdown — first option is "None"
+  const meetSel=document.getElementById('ren-meet');
+  meetSel.innerHTML=`<option value="">— No meeting —</option>`+D.meetings.map(m=>`<option value="${m.id}"${m.id===f.t.meetingId?' selected':''}>${esc(m.name)}${m.date?' ('+fmtD(m.date)+')':''}</option>`).join('');
+
   document.getElementById('mo-ren').classList.add('on');
   setTimeout(()=>document.getElementById('ren-inp').focus(),120);
 }
 function doRename(){
   const v=document.getElementById('ren-inp').value.trim();
   if(!v||!renId)return;
-  const f=findT(renId);if(f){f.t.text=v;save();}
-  closeAll();refreshView();
+  const f=findT(renId);if(!f)return;
+
+  const newPid=document.getElementById('ren-proj').value;
+  const newMid=document.getElementById('ren-meet').value||null;
+
+  // Update text and meeting on the task
+  f.t.text=v;
+  f.t.meetingId=newMid;
+
+  // Move to different project if changed
+  if(newPid&&newPid!==f.p.id){
+    const newP=D.projects.find(x=>x.id===newPid);
+    if(newP){
+      f.p.tasks=f.p.tasks.filter(x=>x.id!==renId);
+      newP.tasks.unshift(f.t);
+    }
+  }
+
+  save();closeAll();refreshView();toast('Task updated');
 }
 
 // PROJECTS MODAL
