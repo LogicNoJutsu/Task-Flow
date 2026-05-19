@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>TaskFlow</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- SheetJS for Excel export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root {
   --bg: #0c0c0e;
@@ -79,6 +81,8 @@ body{
 .hbtn:hover{border-color:var(--b2);color:var(--t2);background:var(--s2);}
 .hbtn.pri{background:var(--acc);border-color:var(--acc);color:#fff;}
 .hbtn.pri:hover{background:var(--acc2);}
+.hbtn.xl{background:rgba(52,211,153,0.12);border-color:rgba(52,211,153,0.3);color:var(--green);}
+.hbtn.xl:hover{background:rgba(52,211,153,0.2);}
 
 /* CONTENT */
 .content{flex:1;overflow-y:auto;padding:16px 14px 8px;}
@@ -134,6 +138,12 @@ body{
 .sh:first-of-type{margin-top:0;}
 .sh-lbl{font-size:10px;font-weight:600;color:var(--t4);letter-spacing:0.8px;text-transform:uppercase;}
 .sh-line{flex:1;height:1px;background:var(--b1);}
+.sh-toggle{
+  font-size:10px;color:var(--t4);cursor:pointer;padding:2px 8px;
+  border-radius:10px;border:1px solid var(--b1);background:none;
+  font-family:'DM Sans',sans-serif;transition:all 0.12s;white-space:nowrap;
+}
+.sh-toggle:hover{color:var(--t2);border-color:var(--b2);}
 
 /* TASK */
 .ti{
@@ -181,11 +191,14 @@ body{
   border:1px solid rgba(110,86,255,0.2);cursor:pointer;
 }
 .projbadge{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--t4);}
-
-/* ── TASK ACTION BUTTONS — always visible ── */
-.tacts{
-  display:flex;align-items:center;gap:2px;flex-shrink:0;
+.pastbadge{
+  font-size:10px;padding:2px 7px;border-radius:10px;
+  background:rgba(248,113,113,0.08);color:#f87171;
+  border:1px solid rgba(248,113,113,0.18);font-family:'DM Mono',monospace;
 }
+
+/* TASK ACTION BUTTONS */
+.tacts{display:flex;align-items:center;gap:2px;flex-shrink:0;}
 .abtn{
   width:28px;height:28px;border-radius:var(--rsm);border:none;
   background:none;cursor:pointer;display:flex;align-items:center;
@@ -195,7 +208,7 @@ body{
 .abtn.del{color:var(--t4);}
 .abtn.del:hover{background:rgba(248,113,113,0.12);color:var(--red);}
 
-/* ADD ROW — button always visible */
+/* ADD ROW */
 .add-row{
   display:flex;align-items:center;gap:8px;padding:8px 12px;
   border:1px dashed var(--b1);border-radius:var(--r);
@@ -204,7 +217,6 @@ body{
 .add-row:focus-within{border-color:var(--acc);border-style:solid;background:var(--s2);}
 .add-inp{flex:1;border:none;background:none;color:var(--t1);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;}
 .add-inp::placeholder{color:var(--t4);}
-/* FIX: button always visible, not hidden */
 .add-sub{
   padding:5px 12px;border-radius:var(--rsm);border:none;
   background:var(--acc);color:#fff;font-family:'DM Sans',sans-serif;
@@ -223,6 +235,25 @@ body{
 .mc-stat{margin-left:auto;font-size:11px;color:var(--t3);background:var(--s3);padding:2px 8px;border-radius:10px;}
 .mc-body{padding:10px 14px;}
 .mc-empty{font-size:12px;color:var(--t4);padding:4px 0;}
+
+/* Meeting & Project action buttons in header */
+.mc-acts{display:flex;gap:4px;margin-left:8px;}
+.mc-abtn{
+  width:26px;height:26px;border-radius:var(--rsm);border:none;
+  background:none;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;color:var(--t3);font-size:12px;transition:all 0.12s;
+}
+.mc-abtn:hover{background:var(--s3);color:var(--t2);}
+.mc-abtn.del:hover{background:rgba(248,113,113,0.12);color:var(--red);}
+
+/* Project header with edit/delete */
+.proj-header{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 12px;background:var(--s2);border:1px solid var(--b1);
+  border-radius:var(--r);margin-bottom:10px;
+}
+.proj-hname{font-size:13px;font-weight:500;flex:1;}
+.proj-hacts{display:flex;gap:4px;}
 
 /* MODALS */
 .overlay{
@@ -283,7 +314,7 @@ body{
 .cday:hover{background:var(--s3);color:var(--t1);}
 .cday.today{color:var(--acc);font-weight:600;}
 .cday.sel{background:var(--acc);color:#fff;}
-.cday.emp,.cday.past{opacity:0.25;pointer-events:none;}
+.cday.emp{opacity:0.25;pointer-events:none;}
 
 /* STATUS DROPDOWN */
 .sdrop{
@@ -328,6 +359,33 @@ input[type="date"]{color-scheme:dark;}
 .del-modal-body{font-size:13px;color:var(--t3);margin-bottom:16px;line-height:1.5;}
 .mok.danger{background:var(--red);}
 .mok.danger:hover{background:#e05555;}
+
+/* OLDER TASKS TOGGLE SECTION */
+.older-section{margin-top:8px;}
+.older-toggle-btn{
+  display:flex;align-items:center;gap:8px;width:100%;
+  padding:10px 12px;border:1px dashed var(--b1);border-radius:var(--r);
+  background:none;color:var(--t4);font-family:'DM Sans',sans-serif;font-size:12px;
+  cursor:pointer;transition:all 0.12s;
+}
+.older-toggle-btn:hover{border-color:var(--b2);color:var(--t2);background:var(--s2);}
+.older-toggle-btn .arrow{transition:transform 0.2s;font-size:10px;}
+.older-toggle-btn.open .arrow{transform:rotate(180deg);}
+.older-list{display:none;margin-top:6px;}
+.older-list.visible{display:block;}
+
+/* DATE FILTER ROW */
+.filter-row{
+  display:flex;align-items:center;gap:8px;margin-bottom:12px;
+  flex-wrap:wrap;
+}
+.fchip{
+  padding:4px 10px;border-radius:12px;border:1px solid var(--b1);
+  background:none;color:var(--t3);font-size:11px;cursor:pointer;
+  font-family:'DM Sans',sans-serif;transition:all 0.12s;white-space:nowrap;
+}
+.fchip:hover{border-color:var(--b2);color:var(--t2);}
+.fchip.active{border-color:var(--acc);color:var(--t1);background:var(--acc3);}
 </style>
 </head>
 <body>
@@ -343,6 +401,7 @@ input[type="date"]{color-scheme:dark;}
 <div class="app-header">
   <div class="logo">Task<span>Flow</span></div>
   <div class="hactions">
+    <button class="hbtn xl" onclick="exportExcel()">⬇ Excel</button>
     <button class="hbtn" onclick="openProjModal()">+ Project</button>
     <button class="hbtn pri" onclick="openMeetModal()">+ Meeting</button>
   </div>
@@ -362,10 +421,10 @@ input[type="date"]{color-scheme:dark;}
   </button>
 </div>
 
-<!-- New Project -->
+<!-- New / Edit Project -->
 <div class="overlay" id="mo-proj">
   <div class="modal">
-    <div class="mttl">New project</div>
+    <div class="mttl" id="proj-modal-title">New project</div>
     <div class="mlbl">Name</div>
     <input class="minput" id="proj-name" placeholder="e.g. Product Launch" maxlength="40">
     <div class="mlbl">Color</div>
@@ -380,22 +439,22 @@ input[type="date"]{color-scheme:dark;}
     </div>
     <div class="mbtns">
       <button class="mcan" onclick="closeAll()">Cancel</button>
-      <button class="mok" onclick="createProj()">Create</button>
+      <button class="mok" id="proj-modal-btn" onclick="saveProj()">Create</button>
     </div>
   </div>
 </div>
 
-<!-- New Meeting -->
+<!-- New / Edit Meeting -->
 <div class="overlay" id="mo-meet">
   <div class="modal">
-    <div class="mttl">New meeting</div>
+    <div class="mttl" id="meet-modal-title">New meeting</div>
     <div class="mlbl">Name</div>
     <input class="minput" id="meet-name" placeholder="e.g. Sprint Review" maxlength="60">
     <div class="mlbl">Date</div>
     <input class="minput" type="date" id="meet-date">
     <div class="mbtns">
       <button class="mcan" onclick="closeAll()">Cancel</button>
-      <button class="mok" onclick="createMeet()">Create</button>
+      <button class="mok" id="meet-modal-btn" onclick="saveMeet()">Create</button>
     </div>
   </div>
 </div>
@@ -427,7 +486,7 @@ input[type="date"]{color-scheme:dark;}
   </div>
 </div>
 
-<!-- Rename -->
+<!-- Rename Task -->
 <div class="overlay" id="mo-ren">
   <div class="modal">
     <div class="mttl">Edit task</div>
@@ -443,7 +502,7 @@ input[type="date"]{color-scheme:dark;}
 <!-- Confirm Delete -->
 <div class="overlay" id="mo-del">
   <div class="modal">
-    <div class="mttl">Delete task?</div>
+    <div class="mttl" id="del-title">Delete?</div>
     <div class="del-modal-body" id="del-body">This cannot be undone.</div>
     <div class="mbtns">
       <button class="mcan" onclick="closeAll()">Cancel</button>
@@ -485,8 +544,12 @@ const GH={
 // STATE
 let D={projects:[],meetings:[]};
 let view='today',projId=null,selCol='c-acc';
-let calY,calM,calTask=null,mmTid=null,renId=null,delTid=null,delPid=null;
+let calY,calM,calTask=null,mmTid=null,renId=null;
+let delTid=null,delPid=null,delMid=null,delProjId=null;
+let editMeetId=null,editProjId=null;
 let syncTimer=null;
+let olderOpen=false;
+let olderFilter='7'; // '7','30','all'
 
 const COLHEX={'c-acc':'#6e56ff','c-blue':'#60a5fa','c-green':'#34d399','c-amber':'#fbbf24','c-red':'#f87171','c-pink':'#f472b6','c-teal':'#2dd4bf'};
 const SCFG={ns:{cls:'ns',lbl:'Not started'},ip:{cls:'ip',lbl:'In progress'},done:{cls:'done',lbl:'Completed'},nr:{cls:'nr',lbl:'Not required'}};
@@ -494,7 +557,9 @@ const SCFG={ns:{cls:'ns',lbl:'Not started'},ip:{cls:'ip',lbl:'In progress'},done
 function uid(){return Math.random().toString(36).substr(2,9);}
 function tday(){return new Date().toISOString().split('T')[0];}
 function fmtD(d){if(!d)return'';const dt=new Date(d+'T00:00:00');return dt.toLocaleDateString('en-GB',{day:'numeric',month:'short'});}
+function fmtDLong(d){if(!d)return'';const dt=new Date(d+'T00:00:00');return dt.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function daysAgo(d){if(!d)return 0;const diff=new Date(tday())-new Date(d+'T00:00:00');return Math.floor(diff/86400000);}
 
 // SYNC
 function setSS(state,msg){
@@ -571,10 +636,6 @@ function resetToken(){
 // BOOT
 async function boot(){
   if(!GH.token||!GH.gistId){
-    const ti=document.getElementById('token-inp');
-    const gi=document.getElementById('gist-inp');
-    if(ti&&GH.token)ti.value=GH.token;
-    if(gi&&GH.gistId)gi.value=GH.gistId;
     document.getElementById('mo-token').classList.add('on');
     setSS('err','Setup required');
     lsLoad();showView('today');
@@ -614,20 +675,31 @@ function buildToday(){
   D.projects.forEach(p=>p.tasks.forEach(tk=>{
     if(!tk.date||tk.date===t)all.push({...tk,_pid:p.id,_pn:p.name,_pc:COLHEX[p.color]||'#6e56ff'});
   }));
+
+  // Older tasks (past dates, not today)
+  const olderAll=[];
+  D.projects.forEach(p=>p.tasks.forEach(tk=>{
+    if(tk.date&&tk.date<t)olderAll.push({...tk,_pid:p.id,_pn:p.name,_pc:COLHEX[p.color]||'#6e56ff'});
+  }));
+
   const total=all.length,done=all.filter(x=>x.status==='done'||x.status==='nr').length;
   const pct=total?Math.round(done/total*100):0;
   const dl=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+
   let html=`<div class="today-hero">
     <div class="t-day">${dl}</div>
     <div class="t-big">${total-done}<span>tasks left</span></div>
-    <div class="t-sub">${done} of ${total} complete</div>
+    <div class="t-sub">${done} of ${total} complete today</div>
     <div class="pbar"><div class="pfill" style="width:${pct}%"></div></div>
   </div>`;
+
   const act=all.filter(x=>x.status!=='done'&&x.status!=='nr');
   const fin=all.filter(x=>x.status==='done'||x.status==='nr');
   if(act.length){html+=`<div class="sh"><div class="sh-lbl">Active</div><div class="sh-line"></div></div>`;act.forEach(t=>{html+=buildTask(t,t._pid,{n:t._pn,c:t._pc});});}
   if(fin.length){html+=`<div class="sh"><div class="sh-lbl">Done / Skipped</div><div class="sh-line"></div></div>`;fin.forEach(t=>{html+=buildTask(t,t._pid,{n:t._pn,c:t._pc});});}
   if(!total)html+=`<div class="empty"><div class="ei">✅</div><p>Nothing due today.<br>Add tasks from Projects.</p></div>`;
+
+  // Quick add
   if(D.projects.length){
     const opts=D.projects.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
     html+=`<div class="sh" style="margin-top:20px"><div class="sh-lbl">Quick add</div><div class="sh-line"></div></div>
@@ -639,8 +711,54 @@ function buildToday(){
       </div>
     </div>`;
   }
+
+  // OLDER TASKS SECTION
+  if(olderAll.length){
+    // Filter logic
+    let filtered=olderAll;
+    if(olderFilter==='7') filtered=olderAll.filter(x=>daysAgo(x.date)<=7);
+    else if(olderFilter==='30') filtered=olderAll.filter(x=>daysAgo(x.date)<=30);
+    // sort newest first
+    filtered.sort((a,b)=>b.date.localeCompare(a.date));
+
+    html+=`<div class="sh" style="margin-top:20px">
+      <div class="sh-lbl">Older tasks</div>
+      <div class="sh-line"></div>
+      <span style="font-size:10px;color:var(--t4)">${olderAll.length} total</span>
+    </div>
+    <div class="filter-row">
+      <button class="fchip${olderFilter==='7'?' active':''}" onclick="setOlderFilter('7')">Last 7 days</button>
+      <button class="fchip${olderFilter==='30'?' active':''}" onclick="setOlderFilter('30')">Last 30 days</button>
+      <button class="fchip${olderFilter==='all'?' active':''}" onclick="setOlderFilter('all')">All time</button>
+    </div>
+    <div class="older-section">
+      <button class="older-toggle-btn${olderOpen?' open':''}" onclick="toggleOlder()">
+        <span>📂</span>
+        <span>${filtered.length} task${filtered.length!==1?'s':''} ${olderFilter==='all'?'from all time':olderFilter==='7'?'from last 7 days':'from last 30 days'}</span>
+        <span style="flex:1"></span>
+        <span class="arrow">▼</span>
+      </button>
+      <div class="older-list${olderOpen?' visible':''}" id="older-list">`;
+    if(filtered.length===0){
+      html+=`<div class="empty" style="padding:16px"><p>No tasks in this range.</p></div>`;
+    } else {
+      // Group by date
+      const byDate={};
+      filtered.forEach(t=>{if(!byDate[t.date])byDate[t.date]=[];byDate[t.date].push(t);});
+      Object.keys(byDate).sort((a,b)=>b.localeCompare(a)).forEach(date=>{
+        html+=`<div style="font-size:10px;font-weight:600;color:var(--t4);letter-spacing:0.6px;text-transform:uppercase;margin:10px 0 5px;padding-left:2px">${fmtDLong(date)}</div>`;
+        byDate[date].forEach(t=>{html+=buildTask(t,t._pid,{n:t._pn,c:t._pc});});
+      });
+    }
+    html+=`</div></div>`;
+  }
+
   return html;
 }
+
+function setOlderFilter(f){olderFilter=f;refreshView();}
+function toggleOlder(){olderOpen=!olderOpen;refreshView();}
+
 function qaAdd(){
   const inp=document.getElementById('qa-inp');
   const sel=document.getElementById('qa-proj');
@@ -659,17 +777,29 @@ function buildProjects(){
     </button>`;
   });
   chips+=`</div>`;
+
   if(!projId||!D.projects.find(x=>x.id===projId)){
     if(D.projects.length)projId=D.projects[0].id;
     else return chips+`<div class="empty"><div class="ei">📁</div><p>No projects yet.<br>Tap + Project above.</p></div>`;
   }
   const p=D.projects.find(x=>x.id===projId);if(!p)return chips;
+
+  // Project header with edit/delete
+  let html=chips+`<div class="proj-header">
+    <span class="cdot" style="background:${COLHEX[p.color]||'#6e56ff'};width:10px;height:10px"></span>
+    <span class="proj-hname">${esc(p.name)}</span>
+    <div class="proj-hacts">
+      <button class="mc-abtn" title="Edit project" onclick="openEditProj('${p.id}')">✏️</button>
+      <button class="mc-abtn del" title="Delete project" onclick="openDelProj('${p.id}')">🗑</button>
+    </div>
+  </div>`;
+
   const act=p.tasks.filter(t=>t.status!=='done'&&t.status!=='nr');
   const fin=p.tasks.filter(t=>t.status==='done'||t.status==='nr');
-  let html=chips;
   if(act.length){html+=`<div class="sh"><div class="sh-lbl">Active</div><div class="sh-line"></div></div>`;act.forEach(t=>{html+=buildTask(t,p.id);});}
   if(fin.length){html+=`<div class="sh"><div class="sh-lbl">Done / Skipped</div><div class="sh-line"></div></div>`;fin.forEach(t=>{html+=buildTask(t,p.id);});}
   if(!p.tasks.length)html+=`<div class="empty"><div class="ei">📋</div><p>No tasks yet.</p></div>`;
+
   html+=`<div class="add-row" style="margin-top:8px">
     <input class="add-inp" id="proj-add-inp-${p.id}" placeholder="Add a task…" onkeydown="if(event.key==='Enter')addTaskById('${p.id}')">
     <button class="add-sub" onclick="addTaskById('${p.id}')">Add</button>
@@ -688,6 +818,10 @@ function buildMeetings(){
         <div class="mc-ico">🤝</div>
         <div><div class="mc-name">${esc(m.name)}</div>${m.date?`<div class="mc-date">${fmtD(m.date)}</div>`:''}</div>
         <div class="mc-stat">${done}/${tasks.length} done</div>
+        <div class="mc-acts">
+          <button class="mc-abtn" title="Edit meeting" onclick="openEditMeet('${m.id}')">✏️</button>
+          <button class="mc-abtn del" title="Delete meeting" onclick="openDelMeet('${m.id}')">🗑</button>
+        </div>
       </div>
       <div class="mc-body">
         ${tasks.length===0?`<div class="mc-empty">No tasks yet. Move tasks here from Projects.</div>`
@@ -716,7 +850,7 @@ function buildTask(task,pid,pm){
       <button class="abtn" title="Move to date" onclick="openCal('${task.id}')">📅</button>
       <button class="abtn" title="Move to meeting" onclick="openMM('${task.id}')">🤝</button>
       <button class="abtn" title="Edit" onclick="openRen('${task.id}')">✏️</button>
-      <button class="abtn del" title="Delete" onclick="openDelConfirm('${task.id}','${pid||''}')">🗑</button>
+      <button class="abtn del" title="Delete" onclick="openDelTask('${task.id}','${pid||''}')">🗑</button>
     </div>
   </div>`;
 }
@@ -724,7 +858,6 @@ function buildTask(task,pid,pm){
 // TASK OPS
 function findT(tid){for(const p of D.projects){const t=p.tasks.find(x=>x.id===tid);if(t)return{t,p};}return null;}
 
-// FIX: use ID-based input lookup instead of sibling reference
 function addTaskById(pid){
   const inp=document.getElementById('proj-add-inp-'+pid);
   if(!inp)return;
@@ -743,20 +876,77 @@ function cycleS(tid){
 
 function setS(tid,s){const f=findT(tid);if(f){f.t.status=s;save();}closeAll();refreshView();}
 
-// DELETE with confirmation modal
-function openDelConfirm(tid,pid){
-  delTid=tid;delPid=pid;
+// ── DELETE TASK ──
+function openDelTask(tid,pid){
+  delTid=tid;delPid=pid;delMid=null;delProjId=null;
   const f=findT(tid);
   const preview=f?'"'+f.t.text.substring(0,60)+(f.t.text.length>60?'…':'')+'"':'this task';
+  document.getElementById('del-title').textContent='Delete task?';
   document.getElementById('del-body').textContent='Delete '+preview+'? This cannot be undone.';
   document.getElementById('mo-del').classList.add('on');
 }
+
+// ── DELETE MEETING ──
+function openDelMeet(mid){
+  delMid=mid;delTid=null;delPid=null;delProjId=null;
+  const m=D.meetings.find(x=>x.id===mid);
+  const taskCount=getMT(mid).length;
+  document.getElementById('del-title').textContent='Delete meeting?';
+  document.getElementById('del-body').textContent=`Delete "${m?m.name:'this meeting'}"?${taskCount>0?` ${taskCount} task(s) will be unlinked from it.`:''} This cannot be undone.`;
+  document.getElementById('mo-del').classList.add('on');
+}
+
+// ── DELETE PROJECT ──
+function openDelProj(pid){
+  delProjId=pid;delTid=null;delPid=null;delMid=null;
+  const p=D.projects.find(x=>x.id===pid);
+  document.getElementById('del-title').textContent='Delete project?';
+  document.getElementById('del-body').textContent=`Delete "${p?p.name:'this project'}" and all its ${p?p.tasks.length:0} task(s)? This cannot be undone.`;
+  document.getElementById('mo-del').classList.add('on');
+}
+
 function confirmDel(){
-  if(!delTid)return;
-  const p=D.projects.find(x=>x.id===delPid);
-  if(p)p.tasks=p.tasks.filter(x=>x.id!==delTid);
-  save();closeAll();refreshView();toast('Deleted');
-  delTid=null;delPid=null;
+  if(delTid){
+    const p=D.projects.find(x=>x.id===delPid);
+    if(p)p.tasks=p.tasks.filter(x=>x.id!==delTid);
+    toast('Task deleted');
+  } else if(delMid){
+    // Unlink tasks from this meeting
+    D.projects.forEach(p=>p.tasks.forEach(t=>{if(t.meetingId===delMid)t.meetingId=null;}));
+    D.meetings=D.meetings.filter(x=>x.id!==delMid);
+    toast('Meeting deleted');
+  } else if(delProjId){
+    D.projects=D.projects.filter(x=>x.id!==delProjId);
+    if(projId===delProjId)projId=D.projects.length?D.projects[0].id:null;
+    toast('Project deleted');
+  }
+  save();closeAll();refreshView();
+  delTid=null;delPid=null;delMid=null;delProjId=null;
+}
+
+// ── EDIT MEETING ──
+function openEditMeet(mid){
+  editMeetId=mid;
+  const m=D.meetings.find(x=>x.id===mid);if(!m)return;
+  document.getElementById('meet-modal-title').textContent='Edit meeting';
+  document.getElementById('meet-modal-btn').textContent='Save';
+  document.getElementById('meet-name').value=m.name;
+  document.getElementById('meet-date').value=m.date||'';
+  document.getElementById('mo-meet').classList.add('on');
+  setTimeout(()=>document.getElementById('meet-name').focus(),120);
+}
+
+// ── EDIT PROJECT ──
+function openEditProj(pid){
+  editProjId=pid;
+  const p=D.projects.find(x=>x.id===pid);if(!p)return;
+  document.getElementById('proj-modal-title').textContent='Edit project';
+  document.getElementById('proj-modal-btn').textContent='Save';
+  document.getElementById('proj-name').value=p.name;
+  selCol=p.color||'c-acc';
+  document.querySelectorAll('.cp').forEach(x=>x.classList.toggle('sel',x.dataset.c===selCol));
+  document.getElementById('mo-proj').classList.add('on');
+  setTimeout(()=>document.getElementById('proj-name').focus(),120);
 }
 
 // STATUS DROPDOWN
@@ -787,7 +977,7 @@ function renderCal(){
   for(let i=0;i<first;i++)h+=`<div class="cday emp"></div>`;
   for(let d=1;d<=last;d++){
     const ds=`${calY}-${String(calM+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    h+=`<button class="cday${ds===t?' today':''}${ds<t?' past':''}" onclick="pickDate('${ds}')">${d}</button>`;
+    h+=`<button class="cday${ds===t?' today':''}" onclick="pickDate('${ds}')">${d}</button>`;
   }
   document.getElementById('cgrid').innerHTML=h;
 }
@@ -810,7 +1000,7 @@ function doMoveMeet(){
   const m=D.meetings.find(x=>x.id===sel);toast('Moved to '+(m?m.name:'meeting'));
 }
 
-// RENAME
+// RENAME TASK
 function openRen(tid){
   renId=tid;const f=findT(tid);if(!f)return;
   document.getElementById('ren-inp').value=f.t.text;
@@ -824,8 +1014,11 @@ function doRename(){
   closeAll();refreshView();
 }
 
-// PROJECTS
+// PROJECTS MODAL
 function openProjModal(){
+  editProjId=null;
+  document.getElementById('proj-modal-title').textContent='New project';
+  document.getElementById('proj-modal-btn').textContent='Create';
   document.getElementById('proj-name').value='';
   selCol='c-acc';
   document.querySelectorAll('.cp').forEach(x=>x.classList.remove('sel'));
@@ -834,25 +1027,112 @@ function openProjModal(){
   setTimeout(()=>document.getElementById('proj-name').focus(),120);
 }
 function pickCol(el){document.querySelectorAll('.cp').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');selCol=el.dataset.c;}
-function createProj(){
+function saveProj(){
   const name=document.getElementById('proj-name').value.trim();
   if(!name){document.getElementById('proj-name').focus();return;}
-  const p={id:uid(),name,color:selCol,tasks:[]};
-  D.projects.push(p);save();closeAll();showView('projects',p.id);toast('Project created');
+  if(editProjId){
+    const p=D.projects.find(x=>x.id===editProjId);
+    if(p){p.name=name;p.color=selCol;}
+    toast('Project updated');
+  } else {
+    const p={id:uid(),name,color:selCol,tasks:[]};
+    D.projects.push(p);projId=p.id;
+    toast('Project created');
+  }
+  save();closeAll();showView('projects',projId);
+  editProjId=null;
 }
 
-// MEETINGS
+// MEETINGS MODAL
 function openMeetModal(){
+  editMeetId=null;
+  document.getElementById('meet-modal-title').textContent='New meeting';
+  document.getElementById('meet-modal-btn').textContent='Create';
   document.getElementById('meet-name').value='';
   document.getElementById('meet-date').value=tday();
   document.getElementById('mo-meet').classList.add('on');
   setTimeout(()=>document.getElementById('meet-name').focus(),120);
 }
-function createMeet(){
+function saveMeet(){
   const name=document.getElementById('meet-name').value.trim();
   if(!name){document.getElementById('meet-name').focus();return;}
-  D.meetings.push({id:uid(),name,date:document.getElementById('meet-date').value});
-  save();closeAll();showView('meetings');toast('Meeting created');
+  if(editMeetId){
+    const m=D.meetings.find(x=>x.id===editMeetId);
+    if(m){m.name=name;m.date=document.getElementById('meet-date').value;}
+    toast('Meeting updated');
+  } else {
+    D.meetings.push({id:uid(),name,date:document.getElementById('meet-date').value});
+    toast('Meeting created');
+  }
+  save();closeAll();showView('meetings');
+  editMeetId=null;
+}
+
+// ══════════════════════════════════════════
+// EXCEL EXPORT — one tab per meeting + one "All Tasks" tab
+// ══════════════════════════════════════════
+function exportExcel(){
+  if(!D.projects.length&&!D.meetings.length){toast('Nothing to export');return;}
+
+  const wb=XLSX.utils.book_new();
+
+  const STATUS_LABELS={ns:'Not Started',ip:'In Progress',done:'Completed',nr:'Not Required'};
+  const headers=['Task','Status','Action Date','Project','Meeting'];
+
+  // Helper: row from task
+  function taskRow(task){
+    const p=D.projects.find(x=>x.tasks.some(y=>y.id===task.id));
+    const m=task.meetingId?D.meetings.find(x=>x.id===task.meetingId):null;
+    return[
+      task.text,
+      STATUS_LABELS[task.status]||task.status,
+      task.date?fmtDLong(task.date):'',
+      p?p.name:'',
+      m?m.name:''
+    ];
+  }
+
+  // ── Tab 1: All Tasks ──
+  const allRows=[headers];
+  D.projects.forEach(p=>p.tasks.forEach(t=>allRows.push(taskRow(t))));
+  const wsAll=XLSX.utils.aoa_to_sheet(allRows);
+  styleSheet(wsAll,allRows.length);
+  XLSX.utils.book_append_sheet(wb,wsAll,'All Tasks');
+
+  // ── One tab per meeting ──
+  D.meetings.forEach(m=>{
+    const mTasks=getMT(m.id);
+    const rows=[headers];
+    mTasks.forEach(t=>rows.push(taskRow(t)));
+    if(rows.length===1)rows.push(['No tasks assigned to this meeting','','','','']);
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    styleSheet(ws,rows.length);
+    // Sheet name max 31 chars, strip invalid chars
+    const sheetName=m.name.replace(/[\[\]:*?\/\\]/g,'').substring(0,31)||'Meeting';
+    XLSX.utils.book_append_sheet(wb,ws,sheetName);
+  });
+
+  // ── Tab: Tasks with no meeting ──
+  const noMeet=[];
+  D.projects.forEach(p=>p.tasks.forEach(t=>{if(!t.meetingId)noMeet.push(t);}));
+  if(noMeet.length){
+    const rows=[headers];
+    noMeet.forEach(t=>rows.push(taskRow(t)));
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    styleSheet(ws,rows.length);
+    XLSX.utils.book_append_sheet(wb,ws,'No Meeting');
+  }
+
+  const today=tday().replace(/-/g,'');
+  XLSX.writeFile(wb,`TaskFlow_${today}.xlsx`);
+  toast('Excel downloaded ✓');
+}
+
+function styleSheet(ws,rowCount){
+  // Column widths
+  ws['!cols']=[{wch:50},{wch:15},{wch:14},{wch:18},{wch:24}];
+  // Freeze first row
+  ws['!freeze']={xSplit:0,ySplit:1};
 }
 
 // UTILS
@@ -871,9 +1151,10 @@ document.addEventListener('click',e=>{
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape')closeAll();
   if(e.key==='Enter'){
-    if(document.getElementById('mo-proj').classList.contains('on'))createProj();
-    else if(document.getElementById('mo-meet').classList.contains('on'))createMeet();
+    if(document.getElementById('mo-proj').classList.contains('on'))saveProj();
+    else if(document.getElementById('mo-meet').classList.contains('on'))saveMeet();
     else if(document.getElementById('mo-ren').classList.contains('on'))doRename();
+    else if(document.getElementById('mo-token').classList.contains('on'))saveToken();
   }
 });
 
